@@ -1,0 +1,106 @@
+algorithm: ppo   # "ppo" or "sac" — overridable per-run with --algo
+
+env:
+  num_clients_min: 3
+  num_clients_max: 8
+  max_clients: 8
+  arena_size: 10.0
+  mask_lookahead: true        # CRITICAL: prevents policy freezing
+  delivery_altitude: 1.0      # full 3D — clients at z=1.0
+  fix_altitude: false
+  fix_altitude_value: 2.0
+  delivery_radius: 0.5        # fixed — no curriculum annealing (single stage)
+
+  max_speed: 2.0
+  initial_energy: 100.0
+  # Single-stage: drain is at the fully-deployed rate from step 0
+  # (previously ramped 0.001→0.005 / 0.005→0.020 via energy_drain_staging).
+  base_drain: 0.005
+  speed_coefficient: 0.020
+  max_episode_steps: 5000     # generous for multi-client episodes
+
+  manager_alpha: 1.5
+  manager_beta: 0.1
+  debug_logging: false
+
+# Domain randomization — replaces the old curriculum/energy-phasing/
+# wind-annealing stages. Every reset() independently coin-flips wind-on
+# and obstacles-on, so all four combinations (neither / wind-only /
+# obstacles-only / both) occur during training.
+domain_randomization:
+  enabled: true              # then flip  after 1–2M steps: uv run python training/train.py --config configs/config.yaml  --resume models/checkpoint_XXXX.zip
+  wind_prob: 0.5              # P(wind enabled this episode)
+  obstacles_prob: 0.5         # P(obstacles enabled this episode)
+
+  wind_volatility: 0.5        # Volatility (σ) for Ornstein-Uhlenbeck process
+  wind_mean_reversion: 0.1    # Mean reversion speed (θ)
+  wind_max_speed: 3.0         # Maximum wind speed clamp (m/s)
+
+  obstacles_min_k: 2          # K obstacles per episode, sampled Uniform{min_k..max_k}
+  obstacles_max_k: 5
+  obstacle_radius_min: 0.3
+  obstacle_radius_max: 0.8
+  obstacle_collision_penalty: -50.0
+
+rewards:
+  delivery_reward: 100.0
+  completion_bonus: 200.0
+  energy_bonus_coeff: 1.0
+  failure_penalty: -50.0
+  out_of_bounds_penalty: -50.0
+  step_penalty: -0.05
+  survival_bonus: 0.005
+  dense_shaping_enabled: true
+  shaping_coeff: 2.0
+
+agent:
+  learning_rate: 0.0003
+  learning_rate_end: 0.00003
+  n_steps: 2048
+  batch_size: 256
+  n_epochs: 10
+  gamma: 0.995
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  policy_hidden_sizes: [256, 256]
+
+# SAC hyperparameters — used instead of `agent:` when algorithm: sac
+# (or --algo sac). SAC is off-policy: it learns from a replay buffer instead
+# of on-policy rollouts, so n_steps/n_epochs/clip_range/gae_lambda/vf_coef/
+# max_grad_norm don't apply here.
+sac:
+  learning_rate: 0.0003
+  learning_rate_end: 0.00003
+  batch_size: 256
+  buffer_size: 1000000       # replay buffer capacity (transitions)
+  learning_starts: 10000     # steps of random exploration before training starts
+  tau: 0.005                 # target-network Polyak averaging coefficient
+  gamma: 0.995
+  train_freq: 1              # update every N env steps
+  gradient_steps: 1          # gradient updates per training round (-1 = match train_freq)
+  ent_coef: "auto"           # "auto" learns the entropy coefficient; or set a float
+  target_update_interval: 1
+  target_entropy: "auto"
+  use_sde: false
+  policy_hidden_sizes: [256, 256]
+
+training:
+  total_timesteps: 10000000
+  num_envs: 4
+  eval_freq: 20000
+  eval_episodes: 30
+  checkpoint_freq: 200000
+  seed: 42
+  log_dir: logs_ppo/
+  model_dir: models_ppo/
+
+wandb:
+  project: drone-delivery-rl
+  entity: null
+  run_name: null
+  tags: [ppo, raisim, single-stage, domain-randomization]
+  video_every_n_episodes: 5
+  video_fps: 30

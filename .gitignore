@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+*.lock
+
+# Logs
+logs/
+*.log
+log_ppo/
+
+# wandb logs
+wandb/
+**/run-*/
+
+# Model checkpoints
+models/
+models_ppo/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.zip
+
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment variables
+.env
