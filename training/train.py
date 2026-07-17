@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from agent.ppo import linear_schedule
 from drone_delivery_autonomous.env import DroneDeliveryEnv, register_env
-from drone_delivery_autonomous.agent import PPOAgent, SACAgent
+from drone_delivery_autonomous.agent import PPOAgent, SACAgent, REINFORCEAgent
 from drone_delivery_autonomous.training.callbacks import (
     WandbMetricsCallback,
     RaiSimVideoCallback,
@@ -180,12 +180,13 @@ def train(
     wandb_config    = config.get("wandb", {})
 
     algo = (algorithm or config.get("algorithm", "ppo")).lower()
-    if algo not in ("ppo", "sac"):
-        print(f"[ERROR] Unknown --algo '{algo}' — must be 'ppo' or 'sac'.")
+    if algo not in ("ppo", "sac", "reinforce"):
+        print(f"[ERROR] Unknown --algo '{algo}' — must be 'ppo', 'sac', or 'reinforce'.")
         sys.exit(1)
-    agent_config = config["agent"] if algo == "ppo" else config.get("sac", {})
-    if algo == "sac" and not agent_config:
-        print("[ERROR] algorithm='sac' but config.yaml has no 'sac:' section.")
+    agent_config = {"ppo": config.get("agent", {}), "sac": config.get("sac", {}),
+                    "reinforce": config.get("reinforce", {})}[algo]
+    if algo != "ppo" and not agent_config:
+        print(f"[ERROR] algorithm='{algo}' but config.yaml has no '{algo}:' section.")
         sys.exit(1)
 
     if output_dir is not None:
@@ -249,14 +250,19 @@ def train(
     print(f"Parallel environments: {num_envs}")
     print(f"Network architecture: {agent_config['policy_hidden_sizes']}")
     print(f"Learning rate: {agent_config['learning_rate']} -> {agent_config.get('learning_rate_end', 5e-5)}")
-    print(f"Batch size: {agent_config['batch_size']}")
     if algo == "ppo":
+        print(f"Batch size: {agent_config['batch_size']}")
         print(f"n_steps: {agent_config['n_steps']}")
         print(f"Entropy coeff: {agent_config['ent_coef']}")
-    else:
+    elif algo == "sac":
+        print(f"Batch size: {agent_config['batch_size']}")
         print(f"Buffer size: {agent_config.get('buffer_size', 1_000_000):,}")
         print(f"Learning starts: {agent_config.get('learning_starts', 10_000):,}")
         print(f"Entropy coeff: {agent_config.get('ent_coef', 'auto')}")
+    else:  # reinforce
+        print(f"n_steps (full-batch per update): {agent_config.get('n_steps', 2048)}")
+        print(f"gae_lambda: {agent_config.get('gae_lambda', 1.0)} (1.0 = true Monte-Carlo return)")
+        print(f"Entropy coeff: {agent_config.get('ent_coef', 0.0)}")
     print(f"Gamma: {agent_config['gamma']}")
     dr_c = config.get("domain_randomization") or {}
     print(
@@ -300,7 +306,7 @@ def train(
         else:
             final_lr_schedule = lr_schedule
 
-        agent_cls = PPOAgent if algo == "ppo" else SACAgent
+        agent_cls = {"ppo": PPOAgent, "sac": SACAgent, "reinforce": REINFORCEAgent}[algo]
         agent = agent_cls.load(
             resume_path,
             env=env,
@@ -342,7 +348,7 @@ def train(
                 policy_hidden_sizes=agent_config["policy_hidden_sizes"],
                 verbose=0,  # quiet — progress bar + W&B/CSV logs cover this instead
             )
-        else:
+        elif algo == "sac":
             agent = SACAgent(
                 env=env,
                 learning_rate=lr_schedule,
@@ -357,6 +363,20 @@ def train(
                 target_update_interval=agent_config.get("target_update_interval", 1),
                 target_entropy=agent_config.get("target_entropy", "auto"),
                 use_sde=agent_config.get("use_sde", False),
+                policy_hidden_sizes=agent_config["policy_hidden_sizes"],
+                verbose=0,  # quiet — progress bar + W&B/CSV logs cover this instead
+            )
+        else:  # reinforce
+            agent = REINFORCEAgent(
+                env=env,
+                learning_rate=lr_schedule,
+                n_steps=agent_config.get("n_steps", 2048),
+                gamma=agent_config["gamma"],
+                gae_lambda=agent_config.get("gae_lambda", 1.0),
+                ent_coef=agent_config.get("ent_coef", 0.0),
+                vf_coef=agent_config.get("vf_coef", 0.5),
+                max_grad_norm=agent_config.get("max_grad_norm", 0.5),
+                normalize_advantage=agent_config.get("normalize_advantage", True),
                 policy_hidden_sizes=agent_config["policy_hidden_sizes"],
                 verbose=0,  # quiet — progress bar + W&B/CSV logs cover this instead
             )
@@ -510,7 +530,7 @@ if __name__ == "__main__":
         "--algo",
         type=str,
         default=None,
-        choices=["ppo", "sac"],
+        choices=["ppo", "sac", "reinforce"],
         help="Which RL algorithm to train with. Overrides config.yaml's top-level "
              "'algorithm' key if both are given (default: config value, or 'ppo').",
     )

@@ -2,5 +2,6 @@
 
 from .ppo import PPOAgent
 from .sac import SACAgent
+from .reinforce import REINFORCEAgent
 
-__all__ = ["PPOAgent", "SACAgent"]
+__all__ = ["PPOAgent", "SACAgent", "REINFORCEAgent"]

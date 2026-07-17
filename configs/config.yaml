@@ -1,4 +1,4 @@
-algorithm: ppo   # "ppo" or "sac" — overridable per-run with --algo
+algorithm: ppo   # "ppo", "sac", or "reinforce" — overridable per-run with --algo
 
 env:
   num_clients_min: 3
@@ -28,7 +28,7 @@ env:
 # and obstacles-on, so all four combinations (neither / wind-only /
 # obstacles-only / both) occur during training.
 domain_randomization:
-  enabled: true              # then flip  after 1–2M steps: uv run python training/train.py --config configs/config.yaml  --resume models/checkpoint_XXXX.zip
+  enabled: false              # then flip  after 1–2M steps: uv run python training/train.py --config configs/config.yaml  --resume models/checkpoint_XXXX.zip
   wind_prob: 0.5              # P(wind enabled this episode)
   obstacles_prob: 0.5         # P(obstacles enabled this episode)
 
@@ -87,15 +87,33 @@ sac:
   use_sde: false
   policy_hidden_sizes: [256, 256]
 
+# Vanilla policy gradient (REINFORCE with a learned value baseline) —
+# included as a classical baseline for comparison, not expected to match
+# PPO/SAC on this task (no clipping/trust-region, no replay, single on-policy
+# gradient step per rollout). gae_lambda=1.0 makes the advantage a true
+# Monte-Carlo return minus baseline (authentic REINFORCE); lower values
+# bootstrap more (closer to A2C).
+reinforce:
+  learning_rate: 0.0007
+  learning_rate_end: 0.0001
+  n_steps: 2048            # rollout length per env before the single gradient step
+  gamma: 0.99
+  gae_lambda: 1.0
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  normalize_advantage: true
+  policy_hidden_sizes: [256, 256]
+
 training:
-  total_timesteps: 10000000
+  total_timesteps: 8000000
   num_envs: 4
   eval_freq: 20000
   eval_episodes: 30
   checkpoint_freq: 200000
   seed: 42
-  log_dir: logs_ppo/
-  model_dir: models_ppo/
+  log_dir: logs/
+  model_dir: models/
 
 wandb:
   project: drone-delivery-rl
