@@ -1,7 +1,5 @@
-"""Evaluation module for drone delivery RL."""
+"""Environment module for drone delivery RL."""
 
-from .evaluate import *
+from .evaluate import main
 
-__all__ = [
-    "UnifiedBenchmark",
-]
+__all__ = ["main"]

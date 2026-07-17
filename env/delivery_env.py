@@ -605,22 +605,29 @@ class DroneDeliveryEnv(gym.Env):
         truncated  = self._is_truncated()
  
         # Terminal bonuses / penalties
+        termination_reason = None
         if terminated or truncated:
             all_done = bool(np.all(self.delivered_mask[: self.num_clients]))
             if all_done:
                 reward += self.completion_bonus
                 reward += self.current_energy * self.energy_bonus_coeff
+                termination_reason = "success"
             elif self.current_energy <= 0.0:
                 reward += self.failure_penalty
                 terminated = True
+                termination_reason = "energy_depleted"
             elif is_colliding_with_obstacle(
                 drone_pos, self.obstacle_positions, self.obstacle_radii
             ):
                 reward += self.obstacle_collision_penalty
                 terminated = True
+                termination_reason = "collision"
             elif is_out_of_bounds(drone_pos, self.arena_size, z_max=5.0):
                 reward += self.out_of_bounds_penalty
                 terminated = True
+                termination_reason = "out_of_bounds"
+            else:
+                termination_reason = "timeout"
  
         self.episode_reward += reward
  
@@ -656,6 +663,7 @@ class DroneDeliveryEnv(gym.Env):
             info["episode_success"] = bool(
                 np.all(self.delivered_mask[: self.num_clients])
             )
+            info["termination_reason"] = termination_reason
  
         return obs, float(reward), terminated, truncated, info
  
