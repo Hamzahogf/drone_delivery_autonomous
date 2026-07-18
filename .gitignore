@@ -19,7 +19,12 @@ log_ppo/
 wandb/
 **/run-*/
 
+# Ignore all JSON files
 *.json
+
+# But keep JSON files in report/
+!reports/*.json
+
 
 # Model checkpoints
 models/
