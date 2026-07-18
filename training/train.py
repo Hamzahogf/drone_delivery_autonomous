@@ -153,7 +153,7 @@ def create_env(
 
     vec_env = DummyVecEnv([make_env(rank=i) for i in range(num_envs)])
     vec_env = VecNormalize(
-        vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=10.0,
+        vec_env, norm_obs=True, norm_reward=False, clip_obs=10.0, clip_reward=10.0, # attention
         gamma=float(config["agent"].get("gamma", 0.995)),
     )
     return vec_env

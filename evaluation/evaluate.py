@@ -3,7 +3,7 @@ Run one evaluation episode with the RaiSim GUI (raisimUnity) attached, so
 you can visually watch the trained policy fly and deliver.
 Usage (run from the repo root, e.g. ~/Downloads/drone_delivery_autonomous):
 
-    uv run python training/evaluate.py --config configs/config.yaml --model models/final_model.zip --norm  models/final_model_norm.pkl --episodes 50 --no-gui --force-wind --force-obstacles 4
+    uv run python evaluation/evaluate.py --config configs/config.yaml --model models/final_model.zip --norm  models/final_model_norm.pkl --episodes 50 --no-gui --force-wind --force-obstacles 4
 
 Before running: launch raisimUnity and hit "Connect" to localhost:8080
 *first*, then start this script — RaisimServer.launchServer() will block
@@ -22,7 +22,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from stable_baselines3.common.vec_env import VecNormalize
 
 from drone_delivery_autonomous.training.train import create_env, load_config
-from drone_delivery_autonomous.agent import PPOAgent
+from drone_delivery_autonomous.agent import PPOAgent, SACAgent, REINFORCEAgent
+
+AGENT_CLASSES = {"ppo": PPOAgent, "sac": SACAgent, "reinforce": REINFORCEAgent}
 
 
 def main():
@@ -59,6 +61,13 @@ def main():
         metavar="PATH",
         help="Where to write the JSON results report. Defaults to "
              "reports/eval_report_<timestamp>.json.",
+    )
+    parser.add_argument(
+        "--algo",
+        type=str,
+        default="ppo",
+        choices=["ppo", "sac", "reinforce"],
+        help="Which algorithm wrapper to load --model with (must match how it was trained).",
     )
     args = parser.parse_args()
 
@@ -100,7 +109,8 @@ def main():
     env.training = False      # freeze running stats — don't keep updating them
     env.norm_reward = False   # see the *real* reward, not the normalized one
 
-    agent = PPOAgent.load(args.model, env=env, device="auto")
+    agent_cls = AGENT_CLASSES[args.algo]
+    agent = agent_cls.load(args.model, env=env, device="auto")
 
     episode_results = []
     for ep in range(args.episodes):
@@ -176,6 +186,7 @@ def main():
 
     report = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "algo": args.algo,
         "model": args.model,
         "norm": args.norm,
         "config": args.config,
@@ -190,7 +201,7 @@ def main():
     else:
         model_stem = Path(args.model).stem
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        report_path = Path("reports") / f"eval_report_{model_stem}_{ts}.json"
+        report_path = Path("reports") / f"eval_report_{args.algo}_{model_stem}_{ts}.json"
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "w") as f:

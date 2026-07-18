@@ -28,7 +28,7 @@ env:
 # and obstacles-on, so all four combinations (neither / wind-only /
 # obstacles-only / both) occur during training.
 domain_randomization:
-  enabled: false              # then flip  after 1–2M steps: uv run python training/train.py --config configs/config.yaml  --resume models/checkpoint_XXXX.zip
+  enabled: false              # then flip  after 8M steps: uv run python training/train.py --config configs/config.yaml  --resume models/checkpoint_XXXX.zip
   wind_prob: 0.5              # P(wind enabled this episode)
   obstacles_prob: 0.5         # P(obstacles enabled this episode)
 
