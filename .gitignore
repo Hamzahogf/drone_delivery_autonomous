@@ -11,9 +11,7 @@ venv/
 *.lock
 
 # Logs
-logs/
 *.log
-log_ppo/
 
 # wandb logs
 wandb/
@@ -30,13 +28,6 @@ code/
 
 
 # Model checkpoints
-models/
-models_ppo/
-checkpoints/
-*.pth
-*.pt
-*.ckpt
-*.zip
 events.out.tfevents.*
 
 # Python cache
