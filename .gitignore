@@ -18,6 +18,9 @@ log_ppo/
 # wandb logs
 wandb/
 **/run-*/
+*.wandb
+tmp/
+code/
 
 # Ignore all JSON files
 *.json
@@ -34,7 +37,7 @@ checkpoints/
 *.pt
 *.ckpt
 *.zip
-
+events.out.tfevents.*
 
 # Python cache
 .pytest_cache/
@@ -43,3 +46,9 @@ checkpoints/
 
 # Environment variables
 .env
+
+# some experiments
+2/
+3/
+5/
+8/
