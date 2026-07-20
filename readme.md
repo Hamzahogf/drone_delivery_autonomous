@@ -14,6 +14,12 @@
 
 </div>
 
+<p align="center">
+  <img src="assets/drone_delivery.gif" alt="Trained PPO free policy delivering packages with obstacles active, viewed in RaiSim" width="640"/>
+</p>
+<sub>One episode : wind and obstacles forced on (`--force-obstacles 4`), captured live from the RaiSim viewer.</sub>
+
+
 ---
 
 ## 📑 Table of Contents
